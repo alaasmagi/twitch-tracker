@@ -192,7 +192,6 @@
       color: var(--muted);
     }
 
-    /* Stats grid */
     .grid {
       width: 100%;
       max-width: 800px;
@@ -306,6 +305,32 @@
       width: 100%;
       transform-origin: left;
     }
+
+    footer {
+      width: 100%;
+      max-width: 800px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--border-bright);
+      padding-bottom: 1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    footer a:hover { color: var(--accent); border-color: var(--accent); }
+    .sep { color: var(--border-bright); }
   </style>
 </head>
 <body>
@@ -353,6 +378,14 @@
     <div class="log-header">History</div>
     <div class="log" id="log"></div>
   </div>
+
+  <footer>
+    <span>© Aleksander Laasmägi 2026</span>
+    <span class="sep">—</span>
+    <a href="https://alaasmagi.dev" target="_blank">view portfolio</a>
+    <span class="sep">—</span>
+    <a href="https://github.com/alaasmagi/twitch-tracker" target="_blank">source code</a>
+  </footer>
 
   <script>
     const INTERVAL = 30000;
@@ -506,7 +539,7 @@
       currentChannel = name;
       channelInput.value = name;
       setCookie('twitch_channel', name);
-      log.innerHTML = ''; // clear log when switching channel
+      log.innerHTML = ''; 
       statusChannel.innerHTML = `jälgid: <strong>${name}</strong>`;
       statusLabel.textContent = 'Laadimine...';
       statusBanner.className  = 'status-banner waiting';
