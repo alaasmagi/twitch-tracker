@@ -70,7 +70,6 @@
     }
     .next-update em { color: var(--text); font-style: normal; }
 
-    /* Channel input row */
     .channel-row {
       width: 100%;
       max-width: 800px;
@@ -131,7 +130,6 @@
     .channel-btn:hover { opacity: 0.85; }
     .channel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Status banner */
     .status-banner {
       width: 100%;
       max-width: 800px;
@@ -235,7 +233,6 @@
     .card.full { grid-column: 1 / -1; }
     .card.full .card-value { font-size: 16px; font-weight: 400; line-height: 1.5; }
 
-    /* Log */
     .log-section { width: 100%; max-width: 800px; }
     .log-header {
       font-family: 'IBM Plex Mono', monospace;
@@ -314,34 +311,34 @@
 <body>
 
   <header>
-    <div class="logo">twitch<span>.</span>tracker</div>
-    <div class="next-update">järgmine uuendus <em id="countdown">—</em></div>
+    <div class="logo">twitch<span>-</span>tracker</div>
+    <div class="next-update">next update <em id="countdown">—</em></div>
   </header>
 
   <div class="channel-row">
     <div class="channel-prefix">twitch.tv/</div>
-    <input type="text" id="channelInput" class="channel-input" placeholder="kanalini" autocomplete="off" spellcheck="false" />
-    <button class="channel-btn" id="channelBtn">Jälgi</button>
+    <input type="text" id="channelInput" class="channel-input" placeholder="channel name" autocomplete="off" spellcheck="false" />
+    <button class="channel-btn" id="channelBtn">View</button>
   </div>
 
   <div class="status-banner waiting" id="statusBanner">
     <div class="live-dot"></div>
-    <div class="status-label" id="statusLabel">Oota...</div>
+    <div class="status-label" id="statusLabel">Waiting...</div>
     <div class="status-channel" id="statusChannel"></div>
     <div class="status-time" id="statusTime">—</div>
   </div>
 
   <div class="grid">
     <div class="card">
-      <div class="card-label">Mäng / Kategooria</div>
+      <div class="card-label">Game / Activity</div>
       <div class="card-value" id="gameVal"><span class="empty">—</span></div>
     </div>
     <div class="card">
-      <div class="card-label">Vaatajaid</div>
+      <div class="card-label">Viewers</div>
       <div class="card-value viewers-num" id="viewersVal"><span class="empty">—</span></div>
     </div>
     <div class="card full">
-      <div class="card-label">Stream'i pealkiri</div>
+      <div class="card-label">Stream Title</div>
       <div class="card-value" id="titleVal"><span class="empty">—</span></div>
     </div>
   </div>
@@ -353,7 +350,7 @@
   <br>
 
   <div class="log-section">
-    <div class="log-header">Ajalugu</div>
+    <div class="log-header">History</div>
     <div class="log" id="log"></div>
   </div>
 
@@ -416,9 +413,9 @@
       const dotClass = isError ? 'error' : isLive ? 'live' : 'offline';
       let text = '';
       if (isError) {
-        text = `<span class="log-text">viga: ${data.error}</span>`;
+        text = `<span class="log-text">error: ${data.error}</span>`;
       } else if (isLive) {
-        text = `<span class="log-text">LIVE — <span class="game">${data.game || 'tundmatu mäng'}</span>${data.viewers ? ' · ' + data.viewers + ' vaatajat' : ''}</span>`;
+        text = `<span class="log-text">LIVE — <span class="game">${data.game || 'unknown game'}</span>${data.viewers ? ' · ' + data.viewers + ' viewers' : ''}</span>`;
       } else {
         text = `<span class="log-text">offline</span>`;
       }
