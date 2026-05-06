@@ -493,19 +493,19 @@
         const res  = await fetch(`/status?channel=${encodeURIComponent(currentChannel)}`);
         const data = await res.json();
 
-        statusTime.textContent    = `uuendatud ${timeStr()}`;
-        statusChannel.innerHTML   = `jälgid: <strong>${currentChannel}</strong>`;
+        statusTime.textContent    = `updated ${timeStr()}`;
+        statusChannel.innerHTML   = `viewing: <strong>${currentChannel}</strong>`;
 
         if (data.error) {
           statusBanner.className  = 'status-banner error';
-          statusLabel.textContent = 'Viga';
+          statusLabel.textContent = 'Error';
           clearStats();
         } else if (data.isLive) {
           statusBanner.className  = 'status-banner live';
           statusLabel.textContent = 'LIVE';
-          gameVal.innerHTML       = fmt(data.game, 'tundmatu');
+          gameVal.innerHTML       = fmt(data.game, 'unknown game');
           viewersVal.innerHTML    = fmt(data.viewers, '—');
-          titleVal.innerHTML      = fmt(data.title, 'pealkiri puudub');
+          titleVal.innerHTML      = fmt(data.title, 'title not available');
         } else {
           statusBanner.className  = 'status-banner offline';
           statusLabel.textContent = 'Offline';
@@ -515,10 +515,10 @@
         addLog(currentChannel, data);
       } catch (e) {
         statusBanner.className  = 'status-banner error';
-        statusLabel.textContent = 'Server ei vasta';
-        statusTime.textContent  = `üritatud ${timeStr()}`;
+        statusLabel.textContent = 'Server Error';
+        statusTime.textContent  = `attempted ${timeStr()}`;
         clearStats();
-        addLog(currentChannel, { error: 'server ei vasta' });
+        addLog(currentChannel, { error: 'server error' });
       } finally {
         hasLoadedOnce = true;
         channelBtn.disabled = false;
@@ -540,8 +540,8 @@
       channelInput.value = name;
       setCookie('twitch_channel', name);
       log.innerHTML = ''; 
-      statusChannel.innerHTML = `jälgid: <strong>${name}</strong>`;
-      statusLabel.textContent = 'Laadimine...';
+      statusChannel.innerHTML = `viewing: <strong>${name}</strong>`;
+      statusLabel.textContent = 'Loading...';
       statusBanner.className  = 'status-banner waiting';
       startCycle();
     }
@@ -554,7 +554,7 @@
       channelInput.value = saved;
       applyChannel(saved);
     } else {
-      statusLabel.textContent = 'Sisesta kanal';
+      statusLabel.textContent = 'Enter a channel';
       countdownEl.textContent = '—';
     }
   </script>
