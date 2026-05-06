@@ -1,6 +1,8 @@
 require('dotenv').config();
 const puppeteer = require('puppeteer');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const Database = require('better-sqlite3');
 
 const PORT        = process.env.PORT || 3000;
@@ -123,7 +125,6 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
-  // Blokeeri kui origin ei ole lubatud
   if (ALLOWED_ORIGINS.length > 0 && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Forbidden' }));
@@ -154,6 +155,13 @@ const server = http.createServer(async (req, res) => {
     data.channel = channel;
     if (!data.error) setCache(channel, data);
     res.end(JSON.stringify(data));
+  } else if (parsed.pathname === '/' || parsed.pathname === '/index.html') {
+    const filePath = path.join(__dirname, 'index.html');
+    fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Not found'); }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
   } else {
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'not found' }));

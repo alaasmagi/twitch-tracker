@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Twitch Tracker</title>
+  <title>twitch tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -376,7 +376,6 @@
     const channelInput  = document.getElementById('channelInput');
     const channelBtn    = document.getElementById('channelBtn');
 
-    // --- Cookie helpers ---
     function setCookie(name, value, days = 365) {
       const expires = new Date(Date.now() + days * 864e5).toUTCString();
       document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
@@ -389,7 +388,6 @@
       }, '');
     }
 
-    // --- UI helpers ---
     function fmt(val, fallback = '—') {
       return val ? val : `<span class="empty">${fallback}</span>`;
     }
@@ -458,7 +456,7 @@
       setSkeletons();
 
       try {
-        const res  = await fetch(`http://localhost:3000/status?channel=${encodeURIComponent(currentChannel)}`);
+        const res  = await fetch(`/status?channel=${encodeURIComponent(currentChannel)}`);
         const data = await res.json();
 
         statusTime.textContent    = `uuendatud ${timeStr()}`;
@@ -486,7 +484,7 @@
         statusLabel.textContent = 'Server ei vasta';
         statusTime.textContent  = `üritatud ${timeStr()}`;
         clearStats();
-        addLog(currentChannel, { error: 'server ei vasta (localhost:3000)' });
+        addLog(currentChannel, { error: 'server ei vasta' });
       } finally {
         channelBtn.disabled = false;
       }
@@ -516,7 +514,6 @@
     channelBtn.addEventListener('click', () => applyChannel(channelInput.value));
     channelInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyChannel(channelInput.value); });
 
-    // --- Init: load from cookie ---
     const saved = getCookie('twitch_channel');
     if (saved) {
       channelInput.value = saved;
