@@ -65,18 +65,24 @@ async function scrapeChannel(channel) {
       headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
+
     const page = await browser.newPage();
+    page.setDefaultNavigationTimeout(60000);
 
     await page.setUserAgent(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
     await page.goto(`https://www.twitch.tv/${channel}`, {
-      waitUntil: 'networkidle0',
-      timeout: 30000,
+      waitUntil: 'domcontentloaded',
+      timeout: 60000,
     });
 
-    await new Promise(r => setTimeout(r, 3000));
+    await Promise.race([
+      page.waitForSelector('[data-a-target="stream-title"]', { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="channel-viewers-count"]', { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="animated-channel-viewers-count"]', { timeout: 10000 }),
+    ]).catch(() => {});
 
     const data = await page.evaluate(() => {
       const result = {
@@ -99,20 +105,17 @@ async function scrapeChannel(channel) {
       const gameLink =
         document.querySelector('[data-a-target="stream-game-link"] span') ||
         document.querySelector('[data-a-target="stream-game-link"]');
-
       if (gameLink) result.game = gameLink.textContent.trim();
 
       const titleEl =
         document.querySelector('[data-a-target="stream-title"]') ||
         document.querySelector('.tw-ellipsis h2') ||
         document.querySelector('[class*="CoreText"]');
-
       if (titleEl) result.title = titleEl.textContent.trim();
 
       const viewerEl =
         document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
         document.querySelector('[data-a-target="channel-viewers-count"]');
-
       if (viewerEl) result.viewers = viewerEl.textContent.trim();
 
       return result;
