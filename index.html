@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0b;
+      --panel: #111114;
+      --border: #1e1e24;
+      --border-bright: #2e2e38;
+      --text: #e8e8f0;
+      --muted: #5a5a72;
+      --accent: #00e5a0;
+      --accent-dim: rgba(0, 229, 160, 0.12);
+      --red: #ff4560;
+      --red-dim: rgba(255, 69, 96, 0.12);
+      --yellow: #f5c842;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    header {
+      width: 100%;
+      max-width: 800px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+    }
+
+    .logo {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    .logo span { color: var(--accent); }
+
+    .next-update {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .next-update em { color: var(--text); font-style: normal; }
+
+    /* Channel input row */
+    .channel-row {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .channel-row:focus-within {
+      border-color: var(--accent);
+    }
+
+    .channel-prefix {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      padding: 14px 0 14px 18px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .channel-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      padding: 14px 12px;
+      caret-color: var(--accent);
+    }
+
+    .channel-input::placeholder { color: var(--border-bright); }
+
+    .channel-btn {
+      background: var(--accent);
+      border: none;
+      color: #0a0a0b;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      padding: 14px 22px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+
+    .channel-btn:hover { opacity: 0.85; }
+    .channel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Status banner */
+    .status-banner {
+      width: 100%;
+      max-width: 800px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px 28px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: border-color 0.4s, background 0.4s;
+    }
+
+    .status-banner.live   { border-color: var(--accent); background: var(--accent-dim); }
+    .status-banner.offline { border-color: var(--border); background: var(--panel); }
+    .status-banner.error  { border-color: var(--red); background: var(--red-dim); }
+    .status-banner.waiting { border-color: var(--border); background: var(--panel); }
+
+    .live-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.4s;
+    }
+    .status-banner.live .live-dot {
+      background: var(--accent);
+      animation: pulse 1.8s infinite;
+    }
+    .status-banner.error .live-dot { background: var(--red); }
+
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(0,229,160,0.6); }
+      70%  { box-shadow: 0 0 0 8px rgba(0,229,160,0); }
+      100% { box-shadow: 0 0 0 0   rgba(0,229,160,0); }
+    }
+
+    .status-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .status-banner.live  .status-label { color: var(--accent); }
+    .status-banner.error .status-label { color: var(--red); }
+
+    .status-channel {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status-channel strong { color: var(--text); font-weight: 500; }
+
+    .status-time {
+      margin-left: auto;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Stats grid */
+    .grid {
+      width: 100%;
+      max-width: 800px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px 28px;
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: var(--border-bright); }
+
+    .card-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .card-value {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.2;
+      min-height: 28px;
+    }
+    .card-value .empty { font-size: 14px; color: var(--muted); font-weight: 300; }
+    .viewers-num { color: var(--yellow); }
+
+    .card.full { grid-column: 1 / -1; }
+    .card.full .card-value { font-size: 16px; font-weight: 400; line-height: 1.5; }
+
+    /* Log */
+    .log-section { width: 100%; max-width: 800px; }
+    .log-header {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .log {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .log::-webkit-scrollbar { width: 4px; }
+    .log::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+    .log-entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      animation: fadeIn 0.3s ease;
+    }
+    .log-entry:last-child { border-bottom: none; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-time { color: var(--muted); flex-shrink: 0; }
+    .log-ch   { color: var(--accent); flex-shrink: 0; }
+    .log-dot  { width: 6px; height: 6px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+    .log-dot.live    { background: var(--accent); }
+    .log-dot.offline { background: var(--muted); }
+    .log-dot.error   { background: var(--red); }
+    .log-text { color: var(--text); }
+    .log-text .game { color: var(--accent); }
+
+    .skeleton {
+      display: inline-block;
+      height: 1em; width: 120px;
+      background: linear-gradient(90deg, var(--border) 25%, var(--border-bright) 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 2px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .refresh-bar {
+      width: 100%;
+      max-width: 800px;
+      margin-top: 24px;
+      height: 2px;
+      background: var(--border);
+      border-radius: 1px;
+      overflow: hidden;
+    }
+    .refresh-progress {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transform-origin: left;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">twitch<span>.</span>tracker</div>
+    <div class="next-update">järgmine uuendus <em id="countdown">—</em></div>
+  </header>
+
+  <div class="channel-row">
+    <div class="channel-prefix">twitch.tv/</div>
+    <input type="text" id="channelInput" class="channel-input" placeholder="kanalini" autocomplete="off" spellcheck="false" />
+    <button class="channel-btn" id="channelBtn">Jälgi</button>
+  </div>
+
+  <div class="status-banner waiting" id="statusBanner">
+    <div class="live-dot"></div>
+    <div class="status-label" id="statusLabel">Oota...</div>
+    <div class="status-channel" id="statusChannel"></div>
+    <div class="status-time" id="statusTime">—</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-label">Mäng / Kategooria</div>
+      <div class="card-value" id="gameVal"><span class="empty">—</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Vaatajaid</div>
+      <div class="card-value viewers-num" id="viewersVal"><span class="empty">—</span></div>
+    </div>
+    <div class="card full">
+      <div class="card-label">Stream'i pealkiri</div>
+      <div class="card-value" id="titleVal"><span class="empty">—</span></div>
+    </div>
+  </div>
+
+  <div class="refresh-bar">
+    <div class="refresh-progress" id="progressBar"></div>
+  </div>
+
+  <br>
+
+  <div class="log-section">
+    <div class="log-header">Ajalugu</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script>
+    const INTERVAL = 30000;
+    let currentChannel = '';
+    let cycleTimer = null;
+    let countdownTimer = null;
+
+    const statusBanner  = document.getElementById('statusBanner');
+    const statusLabel   = document.getElementById('statusLabel');
+    const statusChannel = document.getElementById('statusChannel');
+    const statusTime    = document.getElementById('statusTime');
+    const gameVal       = document.getElementById('gameVal');
+    const viewersVal    = document.getElementById('viewersVal');
+    const titleVal      = document.getElementById('titleVal');
+    const countdownEl   = document.getElementById('countdown');
+    const progressBar   = document.getElementById('progressBar');
+    const log           = document.getElementById('log');
+    const channelInput  = document.getElementById('channelInput');
+    const channelBtn    = document.getElementById('channelBtn');
+
+    // --- Cookie helpers ---
+    function setCookie(name, value, days = 365) {
+      const expires = new Date(Date.now() + days * 864e5).toUTCString();
+      document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/`;
+    }
+
+    function getCookie(name) {
+      return document.cookie.split('; ').reduce((acc, part) => {
+        const [k, v] = part.split('=');
+        return k === name ? decodeURIComponent(v) : acc;
+      }, '');
+    }
+
+    // --- UI helpers ---
+    function fmt(val, fallback = '—') {
+      return val ? val : `<span class="empty">${fallback}</span>`;
+    }
+
+    function timeStr() {
+      return new Date().toLocaleTimeString('et-EE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function setSkeletons() {
+      gameVal.innerHTML    = '<span class="skeleton"></span>';
+      viewersVal.innerHTML = '<span class="skeleton"></span>';
+      titleVal.innerHTML   = '<span class="skeleton"></span>';
+    }
+
+    function clearStats() {
+      gameVal.innerHTML    = '<span class="empty">—</span>';
+      viewersVal.innerHTML = '<span class="empty">—</span>';
+      titleVal.innerHTML   = '<span class="empty">—</span>';
+    }
+
+    function addLog(channel, data) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      const isError = !!data.error;
+      const isLive  = data.isLive;
+      const dotClass = isError ? 'error' : isLive ? 'live' : 'offline';
+      let text = '';
+      if (isError) {
+        text = `<span class="log-text">viga: ${data.error}</span>`;
+      } else if (isLive) {
+        text = `<span class="log-text">LIVE — <span class="game">${data.game || 'tundmatu mäng'}</span>${data.viewers ? ' · ' + data.viewers + ' vaatajat' : ''}</span>`;
+      } else {
+        text = `<span class="log-text">offline</span>`;
+      }
+      entry.innerHTML = `
+        <span class="log-time">${timeStr()}</span>
+        <span class="log-ch">${channel}</span>
+        <div class="log-dot ${dotClass}"></div>
+        ${text}
+      `;
+      log.insertBefore(entry, log.firstChild);
+      while (log.children.length > 50) log.removeChild(log.lastChild);
+    }
+
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      progressBar.style.transition = 'none';
+      progressBar.style.transform  = 'scaleX(1)';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        progressBar.style.transition = `transform ${(INTERVAL - 500) / 1000}s linear`;
+        progressBar.style.transform  = 'scaleX(0)';
+      }));
+
+      let cd = Math.round(INTERVAL / 1000);
+      countdownEl.textContent = `${cd}s`;
+      countdownTimer = setInterval(() => {
+        cd--;
+        countdownEl.textContent = cd > 0 ? `${cd}s` : '...';
+        if (cd <= 0) clearInterval(countdownTimer);
+      }, 1000);
+    }
+
+    async function fetchStatus() {
+      if (!currentChannel) return;
+      channelBtn.disabled = true;
+      setSkeletons();
+
+      try {
+        const res  = await fetch(`http://localhost:3000/status?channel=${encodeURIComponent(currentChannel)}`);
+        const data = await res.json();
+
+        statusTime.textContent    = `uuendatud ${timeStr()}`;
+        statusChannel.innerHTML   = `jälgid: <strong>${currentChannel}</strong>`;
+
+        if (data.error) {
+          statusBanner.className  = 'status-banner error';
+          statusLabel.textContent = 'Viga';
+          clearStats();
+        } else if (data.isLive) {
+          statusBanner.className  = 'status-banner live';
+          statusLabel.textContent = 'LIVE';
+          gameVal.innerHTML       = fmt(data.game, 'tundmatu');
+          viewersVal.innerHTML    = fmt(data.viewers, '—');
+          titleVal.innerHTML      = fmt(data.title, 'pealkiri puudub');
+        } else {
+          statusBanner.className  = 'status-banner offline';
+          statusLabel.textContent = 'Offline';
+          clearStats();
+        }
+
+        addLog(currentChannel, data);
+      } catch (e) {
+        statusBanner.className  = 'status-banner error';
+        statusLabel.textContent = 'Server ei vasta';
+        statusTime.textContent  = `üritatud ${timeStr()}`;
+        clearStats();
+        addLog(currentChannel, { error: 'server ei vasta (localhost:3000)' });
+      } finally {
+        channelBtn.disabled = false;
+      }
+    }
+
+    function startCycle() {
+      clearTimeout(cycleTimer);
+      fetchStatus().then(() => {
+        startCountdown();
+        cycleTimer = setTimeout(startCycle, INTERVAL);
+      });
+    }
+
+    function applyChannel(name) {
+      name = name.trim().toLowerCase().replace(/^twitch\.tv\//i, '');
+      if (!name) return;
+      currentChannel = name;
+      channelInput.value = name;
+      setCookie('twitch_channel', name);
+      log.innerHTML = ''; // clear log when switching channel
+      statusChannel.innerHTML = `jälgid: <strong>${name}</strong>`;
+      statusLabel.textContent = 'Laadimine...';
+      statusBanner.className  = 'status-banner waiting';
+      startCycle();
+    }
+
+    channelBtn.addEventListener('click', () => applyChannel(channelInput.value));
+    channelInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyChannel(channelInput.value); });
+
+    // --- Init: load from cookie ---
+    const saved = getCookie('twitch_channel');
+    if (saved) {
+      channelInput.value = saved;
+      applyChannel(saved);
+    } else {
+      statusLabel.textContent = 'Sisesta kanal';
+      countdownEl.textContent = '—';
+    }
+  </script>
+</body>
+</html>
