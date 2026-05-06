@@ -63,10 +63,8 @@ async function scrapeChannel(channel) {
   try {
     browser = await puppeteer.launch({
       headless: true,
-      executablePath: process.env.CHROME_PATH,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-
     const page = await browser.newPage();
 
     await page.setUserAgent(
