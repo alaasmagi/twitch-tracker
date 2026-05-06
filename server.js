@@ -59,12 +59,10 @@ function getCorsHeaders(origin) {
 }
 
 async function scrapeChannel(channel) {
-  let browser;
   try {
-    browser = await puppeteer.launch({
-      executablePath: CHROME_PATH,
+    const browser = await puppeteer.launch({
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      headless: true
     });
 
     const page = await browser.newPage();
@@ -107,12 +105,10 @@ async function scrapeChannel(channel) {
   }
 }
 
-// --- HTTP server ---
 const server = http.createServer(async (req, res) => {
   const origin = req.headers['origin'];
   const corsHeaders = getCorsHeaders(origin);
 
-  // CORS preflight
   if (req.method === 'OPTIONS') {
     if (corsHeaders) {
       res.writeHead(204, {
