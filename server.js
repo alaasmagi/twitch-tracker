@@ -107,10 +107,12 @@ async function scrapeChannel(channel) {
   }
 }
 
+// --- HTTP server ---
 const server = http.createServer(async (req, res) => {
   const origin = req.headers['origin'];
   const corsHeaders = getCorsHeaders(origin);
 
+  // CORS preflight
   if (req.method === 'OPTIONS') {
     if (corsHeaders) {
       res.writeHead(204, {
@@ -125,6 +127,18 @@ const server = http.createServer(async (req, res) => {
     return res.end();
   }
 
+  const parsed = new URL(req.url, `http://localhost`);
+
+  if (parsed.pathname === '/' || parsed.pathname === '/index.html') {
+    const filePath = path.join(__dirname, 'index.html');
+    fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Not found'); }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
   if (ALLOWED_ORIGINS.length > 0 && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Forbidden' }));
@@ -132,8 +146,6 @@ const server = http.createServer(async (req, res) => {
 
   res.setHeader('Content-Type', 'application/json');
   if (corsHeaders) Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
-
-  const parsed = new URL(req.url, `http://localhost`);
 
   if (parsed.pathname === '/status') {
     const channel = (parsed.searchParams.get('channel') || '').trim().toLowerCase();
@@ -155,13 +167,6 @@ const server = http.createServer(async (req, res) => {
     data.channel = channel;
     if (!data.error) setCache(channel, data);
     res.end(JSON.stringify(data));
-  } else if (parsed.pathname === '/' || parsed.pathname === '/index.html') {
-    const filePath = path.join(__dirname, 'index.html');
-    fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); return res.end('Not found'); }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(data);
-    });
   } else {
     res.writeHead(404);
     res.end(JSON.stringify({ error: 'not found' }));
