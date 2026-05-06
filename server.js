@@ -8,7 +8,6 @@ const Database = require('better-sqlite3');
 const PORT        = process.env.PORT || 3000;
 const CACHE_TTL   = parseInt(process.env.CACHE_TTL_SECONDS) || 30;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
-const CHROME_PATH = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const DB_PATH     = process.env.DB_PATH || 'cache.db';
 
 const db = new Database(DB_PATH);
@@ -59,38 +58,63 @@ function getCorsHeaders(origin) {
 }
 
 async function scrapeChannel(channel) {
+  let browser;
+
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       headless: true,
+      executablePath: process.env.CHROME_PATH,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
     const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    await page.goto(`https://www.twitch.tv/${channel}`, { waitUntil: 'networkidle0', timeout: 30000 });
+
+    await page.setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+
+    await page.goto(`https://www.twitch.tv/${channel}`, {
+      waitUntil: 'networkidle0',
+      timeout: 30000,
+    });
+
     await new Promise(r => setTimeout(r, 3000));
 
     const data = await page.evaluate(() => {
-      const result = { isLive: false, game: null, title: null, viewers: null, timestamp: new Date().toISOString() };
+      const result = {
+        isLive: false,
+        game: null,
+        title: null,
+        viewers: null,
+        timestamp: new Date().toISOString(),
+      };
 
-      const liveBadge = document.querySelector('[data-a-target="live-badge"]') ||
-                        document.querySelector('.live-indicator') ||
-                        document.querySelector('[aria-label="Live"]') ||
-                        document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
-                        document.querySelector('[data-a-target="channel-viewers-count"]');
+      const liveBadge =
+        document.querySelector('[data-a-target="live-badge"]') ||
+        document.querySelector('.live-indicator') ||
+        document.querySelector('[aria-label="Live"]') ||
+        document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
+        document.querySelector('[data-a-target="channel-viewers-count"]');
+
       result.isLive = !!liveBadge;
 
-      const gameLink = document.querySelector('[data-a-target="stream-game-link"] span') ||
-                       document.querySelector('[data-a-target="stream-game-link"]');
+      const gameLink =
+        document.querySelector('[data-a-target="stream-game-link"] span') ||
+        document.querySelector('[data-a-target="stream-game-link"]');
+
       if (gameLink) result.game = gameLink.textContent.trim();
 
-      const titleEl = document.querySelector('[data-a-target="stream-title"]') ||
-                      document.querySelector('.tw-ellipsis h2') ||
-                      document.querySelector('[class*="CoreText"]');
+      const titleEl =
+        document.querySelector('[data-a-target="stream-title"]') ||
+        document.querySelector('.tw-ellipsis h2') ||
+        document.querySelector('[class*="CoreText"]');
+
       if (titleEl) result.title = titleEl.textContent.trim();
 
-      const viewerEl = document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
-                       document.querySelector('[data-a-target="channel-viewers-count"]');
+      const viewerEl =
+        document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
+        document.querySelector('[data-a-target="channel-viewers-count"]');
+
       if (viewerEl) result.viewers = viewerEl.textContent.trim();
 
       return result;
@@ -134,8 +158,9 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
+  const isSameOriginRequest = !origin || origin === `http://localhost:${PORT}`;
 
-  if (ALLOWED_ORIGINS.length > 0 && !corsHeaders) {
+  if (ALLOWED_ORIGINS.length > 0 && !isSameOriginRequest && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Forbidden' }));
   }

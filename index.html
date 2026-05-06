@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>twitch tracker</title>
+  <title>Twitch Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -450,10 +450,14 @@
       }, 1000);
     }
 
+    let hasLoadedOnce = false;
     async function fetchStatus() {
       if (!currentChannel) return;
       channelBtn.disabled = true;
-      setSkeletons();
+      
+      if (!hasLoadedOnce) {
+        setSkeletons();
+      }
 
       try {
         const res  = await fetch(`/status?channel=${encodeURIComponent(currentChannel)}`);
@@ -486,6 +490,7 @@
         clearStats();
         addLog(currentChannel, { error: 'server ei vasta' });
       } finally {
+        hasLoadedOnce = true;
         channelBtn.disabled = false;
       }
     }
