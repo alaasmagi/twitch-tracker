@@ -130,6 +130,23 @@ async function scrapeChannel(channel) {
   }
 }
 
+let scraping = false;
+const scrapeQueue = [];
+
+async function scrapeWithLock(channel) {
+  if (scraping) {
+    return new Promise((resolve) => scrapeQueue.push({ channel, resolve }));
+  }
+  scraping = true;
+  const result = await scrapeChannel(channel);
+  scraping = false;
+  if (scrapeQueue.length > 0) {
+    const next = scrapeQueue.shift();
+    scrapeWithLock(next.channel).then(next.resolve);
+  }
+  return result;
+}
+
 const server = http.createServer(async (req, res) => {
   const origin = req.headers['origin'];
   const corsHeaders = getCorsHeaders(origin);
@@ -185,7 +202,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     console.log(`[${new Date().toLocaleTimeString()}] Cache MISS — scraping: twitch.tv/${channel}`);
-    const data = await scrapeChannel(channel);
+    const data = await scrapeWithLock(channel);
     data.channel = channel;
     if (!data.error) setCache(channel, data);
     res.end(JSON.stringify(data));
