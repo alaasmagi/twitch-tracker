@@ -45,33 +45,50 @@ function setCache(channel, data) {
 }
 
 function getCorsHeaders(origin) {
-  if (ALLOWED_ORIGINS.length === 0) {
-    return { 'Access-Control-Allow-Origin': '*' };
-  }
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    return {
-      'Access-Control-Allow-Origin': origin,
-      'Vary': 'Origin'
-    };
-  }
+  if (ALLOWED_ORIGINS.length === 0) return { 'Access-Control-Allow-Origin': '*' };
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' };
   return null;
 }
 
+let browser = null;
+
+async function getBrowser() {
+  if (browser && browser.connected) return browser;
+  browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-crash-reporter',       
+      '--no-zygote',                    
+      '--single-process',              
+      '--disable-extensions',
+      '--disable-background-networking',
+    ],
+  });
+  browser.on('disconnected', () => { browser = null; }); // auto-reset on crash
+  return browser;
+}
+
 async function scrapeChannel(channel) {
-  let browser;
-
+  let page;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    });
-
-    const page = await browser.newPage();
+    const b = await getBrowser();
+    page = await b.newPage();
     page.setDefaultNavigationTimeout(60000);
 
     await page.setUserAgent(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
+
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      const t = req.resourceType();
+      if (['image', 'media', 'font', 'stylesheet'].includes(t)) req.abort();
+      else req.continue();
+    });
 
     await page.goto(`https://www.twitch.tv/${channel}`, {
       waitUntil: 'domcontentloaded',
@@ -79,19 +96,13 @@ async function scrapeChannel(channel) {
     });
 
     await Promise.race([
-      page.waitForSelector('[data-a-target="stream-title"]', { timeout: 10000 }),
-      page.waitForSelector('[data-a-target="channel-viewers-count"]', { timeout: 10000 }),
-      page.waitForSelector('[data-a-target="animated-channel-viewers-count"]', { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="stream-title"]',                     { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="channel-viewers-count"]',            { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="animated-channel-viewers-count"]',   { timeout: 10000 }),
     ]).catch(() => {});
 
     const data = await page.evaluate(() => {
-      const result = {
-        isLive: false,
-        game: null,
-        title: null,
-        viewers: null,
-        timestamp: new Date().toISOString(),
-      };
+      const result = { isLive: false, game: null, title: null, viewers: null, timestamp: new Date().toISOString() };
 
       const liveBadge =
         document.querySelector('[data-a-target="live-badge"]') ||
@@ -99,7 +110,6 @@ async function scrapeChannel(channel) {
         document.querySelector('[aria-label="Live"]') ||
         document.querySelector('[data-a-target="animated-channel-viewers-count"]') ||
         document.querySelector('[data-a-target="channel-viewers-count"]');
-
       result.isLive = !!liveBadge;
 
       const gameLink =
@@ -124,9 +134,12 @@ async function scrapeChannel(channel) {
     return data;
   } catch (err) {
     console.error('Scrape error:', err.message);
+    if (err.message.includes('Target closed') || err.message.includes('Session closed')) {
+      browser = null;
+    }
     return { error: err.message, timestamp: new Date().toISOString() };
   } finally {
-    if (browser) await browser.close();
+    if (page && !page.isClosed()) await page.close().catch(() => {});
   }
 }
 
@@ -134,9 +147,7 @@ let scraping = false;
 const scrapeQueue = [];
 
 async function scrapeWithLock(channel) {
-  if (scraping) {
-    return new Promise((resolve) => scrapeQueue.push({ channel, resolve }));
-  }
+  if (scraping) return new Promise(resolve => scrapeQueue.push({ channel, resolve }));
   scraping = true;
   const result = await scrapeChannel(channel);
   scraping = false;
@@ -176,8 +187,8 @@ const server = http.createServer(async (req, res) => {
     });
     return;
   }
-  const isSameOriginRequest = !origin || origin === `http://localhost:${PORT}`;
 
+  const isSameOriginRequest = !origin || origin === `http://localhost:${PORT}`;
   if (ALLOWED_ORIGINS.length > 0 && !isSameOriginRequest && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: 'Forbidden' }));
@@ -188,7 +199,6 @@ const server = http.createServer(async (req, res) => {
 
   if (parsed.pathname === '/status') {
     const channel = (parsed.searchParams.get('channel') || '').trim().toLowerCase();
-
     if (!channel || !/^[a-z0-9_]{1,25}$/.test(channel)) {
       res.writeHead(400);
       return res.end(JSON.stringify({ error: 'vigane channel parameeter' }));
@@ -216,3 +226,6 @@ server.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
   console.log(`🗄️  SQLite cache TTL: ${CACHE_TTL}s`);
 });
+
+process.on('SIGTERM', async () => { if (browser) await browser.close(); process.exit(0); });
+process.on('SIGINT',  async () => { if (browser) await browser.close(); process.exit(0); });

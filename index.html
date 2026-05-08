@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twitch Tracker</title>
+  <link rel="icon" type="image/png" href="icon.png">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,26 +48,34 @@
       max-width: 800px;
       margin-bottom: 28px;
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: space-between;
+      gap: 20px;
       border-bottom: 1px solid var(--border);
       padding-bottom: 20px;
     }
 
-    .logo {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.2em;
-      color: var(--muted);
-      text-transform: uppercase;
+    .brand {
+      min-width: 0;
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
     }
-    .logo span { color: var(--accent); }
+
+    .brand-logo {
+      display: block;
+      width: min(100%, 340px);
+      height: auto;
+      max-width: 340px;
+      object-fit: contain;
+    }
 
     .next-update {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px;
       color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .next-update em { color: var(--text); font-style: normal; }
 
@@ -333,6 +342,25 @@
   footer a:hover { color: var(--accent); border-color: var(--accent); }
   .sep { color: var(--border-bright); }
 
+  @media (max-width: 640px) {
+    header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .brand {
+      width: 100%;
+    }
+
+    .brand-logo {
+      max-width: 280px;
+    }
+
+    .next-update {
+      white-space: normal;
+    }
+  }
+
   @media (max-width: 480px) {
     footer {
       flex-direction: column;
@@ -347,7 +375,9 @@
 <body>
 
   <header>
-    <div class="logo">twitch<span>-</span>tracker</div>
+    <div class="brand" aria-label="Twitch Tracker">
+      <img src="logo.png" alt="Twitch Tracker" class="brand-logo">
+    </div>
     <div class="next-update">next update <em id="countdown">—</em></div>
   </header>
 
