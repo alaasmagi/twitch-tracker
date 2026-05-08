@@ -96,12 +96,12 @@ async function scrapeChannel(channel) {
     await page.setRequestInterception(true);
     page.on('request', req => {
       const t = req.resourceType();
-      if (['image', 'media', 'font', 'stylesheet'].includes(t)) req.abort();
+      if (['image', 'media', 'font'].includes(t)) req.abort();
       else req.continue();
     });
 
     await page.goto(`https://www.twitch.tv/${channel}`, {
-      waitUntil: 'domcontentloaded',
+      waitUntil: 'networkidle2',
       timeout: 60000,
     });
 
@@ -153,7 +153,6 @@ async function scrapeChannel(channel) {
   }
 }
 
-
 let scraping = false;
 const scrapeQueue = [];
 
@@ -189,6 +188,7 @@ const server = http.createServer(async (req, res) => {
 
   const parsed = new URL(req.url, `http://localhost`);
 
+  // ── Staatilised failid (index.html, logo.png, icon.png, jne) ──
   if (parsed.pathname === '/' || parsed.pathname === '/index.html') {
     const filePath = path.join(__dirname, 'index.html');
     fs.readFile(filePath, (err, data) => {
@@ -213,7 +213,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── API ──
   const isSameOriginRequest = !origin || origin === `http://localhost:${PORT}`;
   if (ALLOWED_ORIGINS.length > 0 && !isSameOriginRequest && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
