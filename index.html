@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twitch Tracker</title>
   <link rel="icon" type="image/png" href="icon.png">
+  <link rel="preload" href="/logo.png" as="image" type="image/png">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -376,7 +377,15 @@
 
   <header>
     <div class="brand" aria-label="Twitch Tracker">
-      <img src="logo.png" alt="Twitch Tracker" class="brand-logo">
+      <img
+        src="/logo.png"
+        alt="Twitch Tracker"
+        class="brand-logo"
+        width="340"
+        height="128"
+        fetchpriority="high"
+        decoding="async"
+      >
     </div>
     <div class="next-update">next update <em id="countdown">—</em></div>
   </header>

@@ -202,12 +202,24 @@ const server = http.createServer(async (req, res) => {
   const ext = path.extname(parsed.pathname);
   if (MIME[ext]) {
     const filePath = path.join(__dirname, parsed.pathname);
-    if (!filePath.startsWith(__dirname)) {
-      res.writeHead(403); return res.end('Forbidden');
+
+    if (!path.resolve(filePath).startsWith(path.resolve(__dirname))) {
+      res.writeHead(403);
+      return res.end('Forbidden');
     }
+
     fs.readFile(filePath, (err, data) => {
-      if (err) { res.writeHead(404); return res.end('Not found'); }
-      res.writeHead(200, { 'Content-Type': MIME[ext] });
+      if (err) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+
+      const headers = {
+        'Content-Type': MIME[ext],
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      };
+
+      res.writeHead(200, headers);
       res.end(data);
     });
     return;
