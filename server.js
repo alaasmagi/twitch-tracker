@@ -10,6 +10,16 @@ const CACHE_TTL   = parseInt(process.env.CACHE_TTL_SECONDS) || 30;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
 const DB_PATH     = process.env.DB_PATH || 'cache.db';
 
+const MIME = {
+  '.html': 'text/html',
+  '.js':   'application/javascript',
+  '.css':  'text/css',
+  '.png':  'image/png',
+  '.jpg':  'image/jpeg',
+  '.svg':  'image/svg+xml',
+  '.ico':  'image/x-icon',
+};
+
 const db = new Database(DB_PATH);
 db.exec(`
   CREATE TABLE IF NOT EXISTS cache (
@@ -61,14 +71,14 @@ async function getBrowser() {
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--disable-crash-reporter',       
-      '--no-zygote',                    
-      '--single-process',              
+      '--disable-crash-reporter',
+      '--no-zygote',
+      '--single-process',
       '--disable-extensions',
       '--disable-background-networking',
     ],
   });
-  browser.on('disconnected', () => { browser = null; }); // auto-reset on crash
+  browser.on('disconnected', () => { browser = null; });
   return browser;
 }
 
@@ -96,9 +106,9 @@ async function scrapeChannel(channel) {
     });
 
     await Promise.race([
-      page.waitForSelector('[data-a-target="stream-title"]',                     { timeout: 10000 }),
-      page.waitForSelector('[data-a-target="channel-viewers-count"]',            { timeout: 10000 }),
-      page.waitForSelector('[data-a-target="animated-channel-viewers-count"]',   { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="stream-title"]',                   { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="channel-viewers-count"]',          { timeout: 10000 }),
+      page.waitForSelector('[data-a-target="animated-channel-viewers-count"]', { timeout: 10000 }),
     ]).catch(() => {});
 
     const data = await page.evaluate(() => {
@@ -142,6 +152,7 @@ async function scrapeChannel(channel) {
     if (page && !page.isClosed()) await page.close().catch(() => {});
   }
 }
+
 
 let scraping = false;
 const scrapeQueue = [];
@@ -188,6 +199,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const ext = path.extname(parsed.pathname);
+  if (MIME[ext]) {
+    const filePath = path.join(__dirname, parsed.pathname);
+    if (!filePath.startsWith(__dirname)) {
+      res.writeHead(403); return res.end('Forbidden');
+    }
+    fs.readFile(filePath, (err, data) => {
+      if (err) { res.writeHead(404); return res.end('Not found'); }
+      res.writeHead(200, { 'Content-Type': MIME[ext] });
+      res.end(data);
+    });
+    return;
+  }
+
+  // ── API ──
   const isSameOriginRequest = !origin || origin === `http://localhost:${PORT}`;
   if (ALLOWED_ORIGINS.length > 0 && !isSameOriginRequest && !corsHeaders) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
